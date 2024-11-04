@@ -20,6 +20,7 @@ package org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x;
 import org.apache.skywalking.apm.agent.core.context.CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.ContextCarrier;
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
+import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
 import org.apache.skywalking.apm.agent.core.context.tag.Tags;
 import org.apache.skywalking.apm.agent.core.context.trace.AbstractSpan;
 import org.apache.skywalking.apm.agent.core.context.trace.SpanLayer;
@@ -48,50 +49,51 @@ public class HttpClientFinalizerSendInterceptor implements InstanceMethodsAround
 
     @Override
     public void beforeMethod(EnhancedInstance objInst, Method method, Object[] allArguments, Class<?>[] argumentsTypes,
-            MethodInterceptResult result) throws Throwable {
+                             MethodInterceptResult result) throws Throwable {
         EnhanceObjectCache enhanceObjectCache = (EnhanceObjectCache) objInst.getSkyWalkingDynamicField();
         if (enhanceObjectCache == null) {
             return;
         }
-        
-        /*
-          In this plug-in, the HttpClientFinalizerSendInterceptor depends on the NettyRoutingFilterInterceptor
-          When the NettyRoutingFilterInterceptor is not executed, the HttpClientFinalizerSendInterceptor has no meaning to be executed independently
-          and using ContextManager.activeSpan() method would cause NPE as active span does not exist.
-         */
-        if (!ContextManager.isActive()) {
+        if (StringUtil.isEmpty(enhanceObjectCache.getUrl())){
             return;
         }
-        
-        AbstractSpan span = ContextManager.activeSpan();
+        ContextSnapshot snapshot = enhanceObjectCache.getSnapshot();
+        if (snapshot == null) {
+            return;
+        }
+
+        URL url = new URL(enhanceObjectCache.getUrl());
+
+        AbstractSpan span = ContextManager.createLocalSpan(
+                "SpringCloudGateway/sendRequestAbstract");
+
+        ContextManager.continued(snapshot);
         span.prepareForAsync();
 
-        if (StringUtil.isNotEmpty(enhanceObjectCache.getUrl())) {
-            URL url = new URL(enhanceObjectCache.getUrl());
+        ContextCarrier contextCarrier = new ContextCarrier();
+        AbstractSpan abstractSpan = ContextManager.createExitSpan(
+                "SpringCloudGateway/sendRequest", contextCarrier, getPeer(url));
 
-            ContextCarrier contextCarrier = new ContextCarrier();
-            AbstractSpan abstractSpan = ContextManager.createExitSpan(
-                    "SpringCloudGateway/sendRequest", contextCarrier, getPeer(url));
-            Tags.URL.set(abstractSpan, enhanceObjectCache.getUrl());
-            abstractSpan.prepareForAsync();
-            abstractSpan.setComponent(SPRING_CLOUD_GATEWAY);
-            abstractSpan.setLayer(SpanLayer.HTTP);
-            ContextManager.stopSpan(abstractSpan);
 
-            BiFunction<? super HttpClientRequest, ? super NettyOutbound, ? extends Publisher<Void>> finalSender = (BiFunction<? super HttpClientRequest, ? super NettyOutbound, ? extends Publisher<Void>>) allArguments[0];
-            allArguments[0] = (BiFunction<HttpClientRequest, NettyOutbound, Publisher<Void>>) (request, outbound) -> {
-                Publisher publisher = finalSender.apply(request, outbound);
+        Tags.URL.set(abstractSpan, enhanceObjectCache.getUrl());
+        abstractSpan.prepareForAsync();
+        abstractSpan.setComponent(SPRING_CLOUD_GATEWAY);
+        abstractSpan.setLayer(SpanLayer.HTTP);
+        ContextManager.stopSpan(abstractSpan);
 
-                CarrierItem next = contextCarrier.items();
-                while (next.hasNext()) {
-                    next = next.next();
-                    request.requestHeaders().remove(next.getHeadKey());
-                    request.requestHeaders().set(next.getHeadKey(), next.getHeadValue());
-                }
-                return publisher;
-            };
-            enhanceObjectCache.setCacheSpan(abstractSpan);
-        }
+        BiFunction<? super HttpClientRequest, ? super NettyOutbound, ? extends Publisher<Void>> finalSender = (BiFunction<? super HttpClientRequest, ? super NettyOutbound, ? extends Publisher<Void>>) allArguments[0];
+        allArguments[0] = (BiFunction<HttpClientRequest, NettyOutbound, Publisher<Void>>) (request, outbound) -> {
+            Publisher publisher = finalSender.apply(request, outbound);
+
+            CarrierItem next = contextCarrier.items();
+            while (next.hasNext()) {
+                next = next.next();
+                request.requestHeaders().remove(next.getHeadKey());
+                request.requestHeaders().set(next.getHeadKey(), next.getHeadValue());
+            }
+            return publisher;
+        };
+        enhanceObjectCache.setCacheSpan(abstractSpan);
         ContextManager.stopSpan(span);
         enhanceObjectCache.setSpan1(span);
     }
@@ -102,14 +104,14 @@ public class HttpClientFinalizerSendInterceptor implements InstanceMethodsAround
 
     @Override
     public Object afterMethod(EnhancedInstance objInst, Method method, Object[] allArguments, Class<?>[] argumentsTypes,
-            Object ret) {
+                              Object ret) {
         ((EnhancedInstance) ret).setSkyWalkingDynamicField(objInst.getSkyWalkingDynamicField());
         return ret;
     }
 
     @Override
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
-            Class<?>[] argumentsTypes, Throwable t) {
+                                      Class<?>[] argumentsTypes, Throwable t) {
 
     }
 }

@@ -25,7 +25,7 @@ import reactor.netty.http.client.HttpClientConfig;
 /**
  * Intercept the constructor and inject {@link EnhanceObjectCache}.
  * <p>
- * The first constructor argument is {@link reactor.netty.http.client.HttpClientConfig} class instance which can get the
+ * The first constructor argument is {@link HttpClientConfig} class instance which can get the
  * request uri string.
  */
 public class HttpClientFinalizerConstructorInterceptor implements InstanceConstructorInterceptor {
@@ -36,7 +36,13 @@ public class HttpClientFinalizerConstructorInterceptor implements InstanceConstr
         if (httpClientConfig == null) {
             return;
         }
-        final EnhanceObjectCache enhanceObjectCache = new EnhanceObjectCache();
+        EnhancedInstance configEnhanced = (EnhancedInstance) allArguments[0];
+        EnhanceObjectCache enhanceObjectCache;
+        if (configEnhanced.getSkyWalkingDynamicField() == null) {
+            enhanceObjectCache = new EnhanceObjectCache();
+        }else {
+            enhanceObjectCache = (EnhanceObjectCache)configEnhanced.getSkyWalkingDynamicField();
+        }
         enhanceObjectCache.setUrl(httpClientConfig.uri());
         objInst.setSkyWalkingDynamicField(enhanceObjectCache);
     }

@@ -39,6 +39,7 @@ public class NettyRoutingFilterInstrumentation extends AbstractGatewayV4EnhanceP
 
     private static final String INTERCEPT_CLASS_NETTY_ROUTING_FILTER = "org.springframework.cloud.gateway.filter.NettyRoutingFilter";
     private static final String NETTY_ROUTING_FILTER_INTERCEPTOR = "org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.NettyRoutingFilterInterceptor";
+    private static final String NETTY_ROUTING_GET_HTTP_CLIENT_INTERCEPTOR = "org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.NettyRoutingGetHttpClientInterceptor";
 
     @Override
     protected ClassMatch enhanceClass() {
@@ -63,6 +64,23 @@ public class NettyRoutingFilterInstrumentation extends AbstractGatewayV4EnhanceP
                     @Override
                     public String getMethodsInterceptor() {
                         return NETTY_ROUTING_FILTER_INTERCEPTOR;
+                    }
+
+                    @Override
+                    public boolean isOverrideArgs() {
+                        return true;
+                    }
+                },
+                new InstanceMethodsInterceptPoint() {
+                    @Override
+                    public ElementMatcher<MethodDescription> getMethodsMatcher() {
+                        return named("getHttpClient").and(
+                                takesArgumentWithType(1, "org.springframework.web.server.ServerWebExchange"));
+                    }
+
+                    @Override
+                    public String getMethodsInterceptor() {
+                        return NETTY_ROUTING_GET_HTTP_CLIENT_INTERCEPTOR;
                     }
 
                     @Override

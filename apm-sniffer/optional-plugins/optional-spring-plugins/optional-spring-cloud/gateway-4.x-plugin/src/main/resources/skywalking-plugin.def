@@ -15,6 +15,7 @@
 # limitations under the License.
 
 spring-cloud-gateway-4.x=org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.define.HttpClientFinalizerInstrumentation
+spring-cloud-gateway-4.x=org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.define.HttpClientConfigInstrumentation
 spring-cloud-gateway-4.x=org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.define.NettyRoutingFilterInstrumentation
 spring-cloud-gateway-4.x=org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.define.ServerWebExchangeInstrumentation
 spring-cloud-gateway-4.x=org.apache.skywalking.apm.plugin.spring.cloud.gateway.v4x.define.DispatcherHandlerInstrumentation

@@ -57,6 +57,7 @@ public class NettyRoutingFilterInterceptor implements InstanceMethodsAroundInter
             ContextManager.continued((ContextSnapshot) enhancedInstance.getSkyWalkingDynamicField());
         }
         span.setComponent(SPRING_CLOUD_GATEWAY);
+        enhancedInstance.setSkyWalkingDynamicField(ContextManager.capture());
     }
 
     private static void setTracedStatus(ServerWebExchange exchange) {
